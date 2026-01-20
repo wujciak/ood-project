@@ -18,8 +18,8 @@ def main():
         print(f"Training Model {i+1}/{CONFIG['n_ensemble']}")
         model = ResNet18_MCDropout(in_channels=n_channels, num_classes=n_classes).to(CONFIG['device'])
         
-        # 1 epoch for demo speed we will increase this later
-        for epoch in range(1): 
+        for epoch in range(CONFIG['epochs']): 
+            print(f"  Epoch {epoch+1}/{CONFIG['epochs']}")
             train_model(model, train_loader, CONFIG['device'])
         ensemble_models.append(model)
 
@@ -36,8 +36,7 @@ def main():
         det_scores = get_uncertainty_deterministic(single_model, loader, CONFIG['device'])
         res['entropy'] = np.array(det_scores['entropy'])
         res['energy'] = np.array(det_scores['energy'])
-        res['hybrid'] = (CONFIG['hybrid_weights']['entropy'] * res['entropy'] + 
-                         CONFIG['hybrid_weights']['energy'] * res['energy'])
+        res['hybrid'] = (CONFIG['hybrid_weights']['entropy'] * res['entropy'] + CONFIG['hybrid_weights']['energy'] * res['energy'])
         res['mc_dropout'] = get_uncertainty_mc_dropout(single_model, loader, CONFIG['device'])
         res['ensemble'] = get_uncertainty_ensemble(ensemble_models, loader, CONFIG['device'])
         

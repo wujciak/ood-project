@@ -8,5 +8,8 @@ def compute_predictive_entropy(probs):
     return torch.mean(entropy, dim=1)
 
 def compute_energy_score(logits, T=1.0):
-    """Energy score: E(x) = -Sum(log(1 + exp(logit_k)))"""
-    return -torch.sum(torch.nn.functional.softplus(logits), dim=1)
+    """Energy score: E(x) = -T * logsumexp(logits/T)
+    Lower energy = higher confidence (ID)
+    Higher energy = lower confidence (OOD)
+    """
+    return -T * torch.logsumexp(logits / T, dim=1)
