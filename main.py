@@ -42,6 +42,13 @@ def main():
         
         results[name] = res
 
+    print("\n--- Score Statistics (mean ± std) ---")
+    for method in ['entropy', 'energy']:
+        print(f"{method}:")
+        print(f"  ID:        {results['ID'][method].mean():.4f} ± {results['ID'][method].std():.4f}")
+        print(f"  OOD_Cross: {results['OOD_Cross'][method].mean():.4f} ± {results['OOD_Cross'][method].std():.4f}")
+        print(f"  OOD_Synth: {results['OOD_Synth'][method].mean():.4f} ± {results['OOD_Synth'][method].std():.4f}")
+
     print("\n--- OOD Detection Performance (AUROC) ---")
     # OOD is positive class (1), ID is negative (0)
     methods = ['entropy', 'energy', 'hybrid', 'mc_dropout', 'ensemble']

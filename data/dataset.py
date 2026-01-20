@@ -9,7 +9,7 @@ from config.config import CONFIG
 
 
 class SyntheticNoiseDataset(Dataset):
-    def __init__(self, base_dataset, noise_factor=0.2):
+    def __init__(self, base_dataset, noise_factor=0.5):
         self.base = base_dataset
         self.noise_factor = noise_factor
     
@@ -19,7 +19,7 @@ class SyntheticNoiseDataset(Dataset):
     def __getitem__(self, idx):
         img, target = self.base[idx]
         noise = torch.randn_like(img) * self.noise_factor
-        img_noisy = torch.clamp(img + noise, 0, 1)
+        img_noisy = torch.clamp(img + noise, -2, 2)
         return img_noisy, target
 
 
