@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 from config import CONFIG
 from models import ResNet18_MCDropout
@@ -20,7 +20,8 @@ def main():
         
         for epoch in range(CONFIG['epochs']): 
             print(f"  Epoch {epoch+1}/{CONFIG['epochs']}")
-            train_model(model, train_loader, CONFIG['device'])
+            loss = train_model(model, train_loader, CONFIG['device'])
+            print(f"    Loss: {loss:.4f}")
         ensemble_models.append(model)
 
     single_model = ensemble_models[0]
@@ -72,6 +73,27 @@ def main():
         auroc_synth = roc_auc_score(y_true_synth, y_scores_synth)
         
         print(f"{method:<15} | {auroc_cross:.4f}{' ':14} | {auroc_synth:.4f}")
+    
+    print("\n--- OOD Detection Performance (AUPR) ---")
+    print(f"{'Method':<15} | {'Cross-Dataset OOD':<20} | {'Synthetic OOD':<20}")
+    print("-" * 60)
+    
+    for method in methods:
+        id_scores = results['ID'][method]
+        
+        # Cross Dataset
+        ood_cross = results['OOD_Cross'][method]
+        y_true_cross = np.concatenate([np.zeros(len(id_scores)), np.ones(len(ood_cross))])
+        y_scores_cross = np.concatenate([id_scores, ood_cross])
+        aupr_cross = average_precision_score(y_true_cross, y_scores_cross)
+        
+        # Synthetic
+        ood_synth = results['OOD_Synth'][method]
+        y_true_synth = np.concatenate([np.zeros(len(id_scores)), np.ones(len(ood_synth))])
+        y_scores_synth = np.concatenate([id_scores, ood_synth])
+        aupr_synth = average_precision_score(y_true_synth, y_scores_synth)
+        
+        print(f"{method:<15} | {aupr_cross:.4f}{' ':14} | {aupr_synth:.4f}")
 
 if __name__ == "__main__":
     main()

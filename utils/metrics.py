@@ -8,8 +8,5 @@ def compute_predictive_entropy(probs):
     return torch.mean(entropy, dim=1)
 
 def compute_energy_score(logits, T=1.0):
-    """Energy score: E(x) = -T * logsumexp(logits/T)
-    Lower energy = higher confidence (ID)
-    Higher energy = lower confidence (OOD)
-    """
-    return -T * torch.logsumexp(logits / T, dim=1)
+    """Energy score adapted for multi-label classification."""
+    return torch.max(torch.abs(logits), dim=1)[0]

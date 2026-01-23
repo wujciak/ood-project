@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
@@ -10,6 +11,7 @@ def train_model(model, loader, device):
     optimizer = optim.Adam(model.parameters(), lr=CONFIG['lr'])
     
     model.train()
+    total_loss = 0.0
     for inputs, targets in tqdm(loader, desc="Training"):
         inputs, targets = inputs.to(device), targets.to(device).float()
         optimizer.zero_grad()
@@ -17,3 +19,7 @@ def train_model(model, loader, device):
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
+        total_loss += loss.item()
+    
+    avg_loss = total_loss / len(loader)
+    return avg_loss
