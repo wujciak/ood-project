@@ -8,8 +8,8 @@ from config.config import CONFIG
 
 def train_model(model, loader, device):
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=CONFIG['lr'])
-    
+    optimizer = optim.Adam(model.parameters(), lr=CONFIG["lr"])
+
     model.train()
     total_loss = 0.0
     for inputs, targets in tqdm(loader, desc="Training"):
@@ -20,6 +20,6 @@ def train_model(model, loader, device):
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
-    
+
     avg_loss = total_loss / len(loader)
     return avg_loss

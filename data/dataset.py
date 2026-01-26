@@ -14,10 +14,10 @@ class SyntheticOODDataset(Dataset):
         self.base = base_dataset
         self.blur = transforms.GaussianBlur(kernel_size=5)
         self.rotate = transforms.RandomRotation(degrees=30)
-    
+
     def __len__(self):
         return len(self.base)
-    
+
     def __getitem__(self, idx):
         img, target = self.base[idx]
 
@@ -32,6 +32,7 @@ class SyntheticOODDataset(Dataset):
             img = self.blur(img)
 
         return img, target
+
 
 def compute_mean_std(dataset):
     loader = DataLoader(dataset, batch_size=256, shuffle=False)
@@ -49,37 +50,62 @@ def compute_mean_std(dataset):
     std /= n_samples
     return mean.tolist(), std.tolist()
 
+
 def get_dataloaders():
     # Load raw dataset to compute normalization
     base_transform = transforms.ToTensor()
-    train_dataset_raw = medmnist.ChestMNIST(split='train', transform=base_transform, download=True)
+    train_dataset_raw = medmnist.ChestMNIST(
+        split="train", transform=base_transform, download=True
+    )
 
     mean, std = compute_mean_std(train_dataset_raw)
 
-    data_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
+    data_transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)]
+    )
 
     # In-distribution: ChestMNIST
-    info_chest = INFO['chestmnist']
-    train_dataset = medmnist.ChestMNIST(split='train', transform=data_transform, download=True)
-    test_dataset_id = medmnist.ChestMNIST(split='test', transform=data_transform, download=True)
-    
+    info_chest = INFO["chestmnist"]
+    train_dataset = medmnist.ChestMNIST(
+        split="train", transform=data_transform, download=True
+    )
+    test_dataset_id = medmnist.ChestMNIST(
+        split="test", transform=data_transform, download=True
+    )
+
     # Cross-dataset OOD: PathMNIST (convert RGB to grayscale)
-    ood_transform = transforms.Compose([
-        transforms.Grayscale(num_output_channels=1),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)
-    ])
-    test_dataset_ood_cross = medmnist.PathMNIST(split='test', transform=ood_transform, download=True)
+    ood_transform = transforms.Compose(
+        [
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
+        ]
+    )
+    test_dataset_ood_cross = medmnist.PathMNIST(
+        split="test", transform=ood_transform, download=True
+    )
 
     # Synthetic OOD
     test_dataset_ood_synth = SyntheticOODDataset(test_dataset_id)
 
-    train_loader = DataLoader(train_dataset, batch_size=CONFIG['batch_size'], shuffle=True)
-    test_loader_id = DataLoader(test_dataset_id, batch_size=CONFIG['batch_size'], shuffle=False)
-    test_loader_ood_cross = DataLoader(test_dataset_ood_cross, batch_size=CONFIG['batch_size'], shuffle=False)
-    test_loader_ood_synth = DataLoader(test_dataset_ood_synth, batch_size=CONFIG['batch_size'], shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, batch_size=CONFIG["batch_size"], shuffle=True
+    )
+    test_loader_id = DataLoader(
+        test_dataset_id, batch_size=CONFIG["batch_size"], shuffle=False
+    )
+    test_loader_ood_cross = DataLoader(
+        test_dataset_ood_cross, batch_size=CONFIG["batch_size"], shuffle=False
+    )
+    test_loader_ood_synth = DataLoader(
+        test_dataset_ood_synth, batch_size=CONFIG["batch_size"], shuffle=False
+    )
 
-    return train_loader, test_loader_id, test_loader_ood_cross, test_loader_ood_synth, info_chest['n_channels'], len(info_chest['label'])
+    return (
+        train_loader,
+        test_loader_id,
+        test_loader_ood_cross,
+        test_loader_ood_synth,
+        info_chest["n_channels"],
+        len(info_chest["label"]),
+    )

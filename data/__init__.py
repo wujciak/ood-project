@@ -1,3 +1,3 @@
-from .dataset import get_dataloaders, SyntheticNoiseDataset
+from .dataset import get_dataloaders, SyntheticOODDataset
 
-__all__ = ['get_dataloaders', 'SyntheticNoiseDataset']
+__all__ = ["get_dataloaders", "SyntheticOODDataset"]
