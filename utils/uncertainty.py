@@ -20,7 +20,7 @@ def get_uncertainty_deterministic(model, loader, device):
             uncertainties["entropy"].extend(ent.cpu().numpy())
 
             eng = compute_energy_score(logits, CONFIG["energy_temp"])
-            uncertainties["energy"].extend((-eng).cpu().numpy())
+            uncertainties["energy"].extend(eng.cpu().numpy())
 
             conf = torch.mean(torch.max(probs, 1 - probs), dim=1)
             uncertainties["confidence"].extend(conf.cpu().numpy())

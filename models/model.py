@@ -3,7 +3,7 @@ import torchvision.models as models
 
 
 class ResNet18_MCDropout(nn.Module):
-    def __init__(self, in_channels, num_classes, dropout_rate=0.5):
+    def __init__(self, in_channels, num_classes, dropout_rate=0.3):
         super(ResNet18_MCDropout, self).__init__()
         self.backbone = models.resnet18(weights=None)
         # Adapt for 1-channel grayscale input

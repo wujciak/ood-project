@@ -60,6 +60,17 @@ def get_dataloaders():
 
     mean, std = compute_mean_std(train_dataset_raw)
 
+    # Training transform with augmentation
+    train_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=10),
+            transforms.Normalize(mean=mean, std=std),
+        ]
+    )
+    
+    # Test transform without augmentation
     data_transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)]
     )
@@ -67,7 +78,7 @@ def get_dataloaders():
     # In-distribution: ChestMNIST
     info_chest = INFO["chestmnist"]
     train_dataset = medmnist.ChestMNIST(
-        split="train", transform=data_transform, download=True
+        split="train", transform=train_transform, download=True
     )
     test_dataset_id = medmnist.ChestMNIST(
         split="test", transform=data_transform, download=True
