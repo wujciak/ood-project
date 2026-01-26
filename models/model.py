@@ -7,9 +7,11 @@ class ResNet18_MCDropout(nn.Module):
         super(ResNet18_MCDropout, self).__init__()
         self.backbone = models.resnet18(weights=None)
         # Adapt for 1-channel grayscale input
-        self.backbone.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.backbone.conv1 = nn.Conv2d(
+            in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False
+        )
         self.backbone.maxpool = nn.Identity()  # Remove maxpool for 28x28 images
-        
+
         num_ftrs = self.backbone.fc.in_features
         self.backbone.fc = nn.Identity()
         self.dropout = nn.Dropout(p=dropout_rate)

@@ -12,3 +12,5 @@ scikit-learn
 medmnist
 tqdm
 Pillow
+matplotlib
+pandas
