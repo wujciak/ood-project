@@ -6,14 +6,18 @@ def compute_predictive_entropy(probs):
     Higher entropy = more uncertain.
     """
     epsilon = 1e-10
-    entropy = -(probs * torch.log(probs + epsilon) + (1 - probs) * torch.log(
-        1 - probs + epsilon
-    ))
+    entropy = -(
+        probs * torch.log(probs + epsilon)
+        + (1 - probs) * torch.log(1 - probs + epsilon)
+    )
     return torch.mean(entropy, dim=1)
 
 
 def compute_energy_score(logits, T=1.0):
-    """Energy score for multi-label classification using LogSumExp.
-    Lower (more negative) energy = more uncertain/OOD.
+    """Energy-based uncertainty for multi-label classification.
+    Uses max absolute logit magnitude as uncertainty measure.
+    Higher score = more extreme predictions = more OOD-like.
     """
-    return -T * torch.logsumexp(logits / T, dim=1)
+    # Large magnitude logits (extreme predictions) indicate OOD
+    # Small magnitude logits (moderate predictions) indicate ID
+    return torch.max(torch.abs(logits), dim=1)[0]

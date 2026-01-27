@@ -32,7 +32,7 @@ def main():
     plots_dir = f"results/plots/{timestamp}"
     os.makedirs(csv_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
-    
+
     print(f"Device: {CONFIG['device']}")
 
     train_loader, test_id, test_ood_cross, test_ood_synth, n_channels, n_classes = (
@@ -110,6 +110,8 @@ def main():
     pd.DataFrame(summary).to_csv(f"{csv_dir}/score_statistics.csv", index=False)
 
     # Compute and save AUROC & AUPR
+    # All uncertainty scores are designed so that: higher value = more uncertain = more OOD-like
+    # This matches AUROC expectation: label 0 (ID) gets low scores, label 1 (OOD) gets high scores
     auroc_summary, aupr_summary = [], []
     for method in ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]:
         id_scores = results["ID"][method]
@@ -117,19 +119,10 @@ def main():
             ("OOD_Cross", results["OOD_Cross"][method]),
             ("OOD_Synth", results["OOD_Synth"][method]),
         ]:
-            # Energy-based methods: negate so higher = more OOD
-            if method in ["energy", "hybrid"]:
-                id_scores_proc = -id_scores
-                ood_scores_proc = -ood_scores
-            else:
-                # Entropy-based: already correct direction (higher = more uncertain/OOD)
-                id_scores_proc = id_scores
-                ood_scores_proc = ood_scores
-            
             y_true = np.concatenate(
-                [np.zeros(len(id_scores_proc)), np.ones(len(ood_scores_proc))]
+                [np.zeros(len(id_scores)), np.ones(len(ood_scores))]
             )
-            y_scores = np.concatenate([id_scores_proc, ood_scores_proc])
+            y_scores = np.concatenate([id_scores, ood_scores])
             auroc_summary.append(
                 {
                     "method": method,
