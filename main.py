@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, average_precision_score
 import torch
+from datetime import datetime
 
 from config import CONFIG
 from models import ResNet18_MCDropout
@@ -26,6 +27,12 @@ os.makedirs("results/csv", exist_ok=True)
 
 
 def main():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_dir = f"results/csv/{timestamp}"
+    plots_dir = f"results/plots/{timestamp}"
+    os.makedirs(csv_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
+    
     print(f"Device: {CONFIG['device']}")
 
     train_loader, test_id, test_ood_cross, test_ood_synth, n_channels, n_classes = (
@@ -85,7 +92,7 @@ def main():
         results[name] = res
 
     # Save results CSVs
-    save_scores_to_csv(results, output_dir="results/csv")
+    save_scores_to_csv(results, output_dir=csv_dir)
 
     # Save mean/std summary
     summary = []
@@ -100,7 +107,7 @@ def main():
                     "std": scores.std(),
                 }
             )
-    pd.DataFrame(summary).to_csv("results/csv/score_statistics.csv", index=False)
+    pd.DataFrame(summary).to_csv(f"{csv_dir}/score_statistics.csv", index=False)
 
     # Compute and save AUROC & AUPR
     auroc_summary, aupr_summary = [], []
@@ -110,10 +117,19 @@ def main():
             ("OOD_Cross", results["OOD_Cross"][method]),
             ("OOD_Synth", results["OOD_Synth"][method]),
         ]:
+            # Energy-based methods: negate so higher = more OOD
+            if method in ["energy", "hybrid"]:
+                id_scores_proc = -id_scores
+                ood_scores_proc = -ood_scores
+            else:
+                # Entropy-based: already correct direction (higher = more uncertain/OOD)
+                id_scores_proc = id_scores
+                ood_scores_proc = ood_scores
+            
             y_true = np.concatenate(
-                [np.zeros(len(id_scores)), np.ones(len(ood_scores))]
+                [np.zeros(len(id_scores_proc)), np.ones(len(ood_scores_proc))]
             )
-            y_scores = np.concatenate([id_scores, ood_scores])
+            y_scores = np.concatenate([id_scores_proc, ood_scores_proc])
             auroc_summary.append(
                 {
                     "method": method,
@@ -129,17 +145,17 @@ def main():
                 }
             )
 
-    pd.DataFrame(auroc_summary).to_csv("results/csv/auroc.csv", index=False)
-    pd.DataFrame(aupr_summary).to_csv("results/csv/aupr.csv", index=False)
+    pd.DataFrame(auroc_summary).to_csv(f"{csv_dir}/auroc.csv", index=False)
+    pd.DataFrame(aupr_summary).to_csv(f"{csv_dir}/aupr.csv", index=False)
 
     # Plot histograms and ROC curves
-    plot_score_histograms(results, output_dir="results/plots")
-    plot_roc_curves(results, output_dir="results/plots")
+    plot_score_histograms(results, output_dir=plots_dir)
+    plot_roc_curves(results, output_dir=plots_dir)
 
     print("\n--- All results saved ---")
     print("Models: results/models/")
-    print("CSV tables: results/csv/")
-    print("Plots: results/plots/")
+    print(f"CSV tables: {csv_dir}/")
+    print(f"Plots: {plots_dir}/")
 
 
 if __name__ == "__main__":

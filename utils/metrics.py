@@ -14,6 +14,6 @@ def compute_predictive_entropy(probs):
 
 def compute_energy_score(logits, T=1.0):
     """Energy score for multi-label classification using LogSumExp.
-    Higher energy = more uncertain.
+    Lower (more negative) energy = more uncertain/OOD.
     """
-    return -T * torch.logsumexp(torch.abs(logits) / T, dim=1)
+    return -T * torch.logsumexp(logits / T, dim=1)
