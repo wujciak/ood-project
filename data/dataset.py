@@ -84,20 +84,12 @@ def get_dataloaders():
         split="test", transform=data_transform, download=True
     )
 
-    # Cross-dataset OOD: PathMNIST (convert RGB to grayscale with its own normalization)
-    path_raw_transform = transforms.Compose(
-        [transforms.Grayscale(num_output_channels=1), transforms.ToTensor()]
-    )
-    path_raw = medmnist.PathMNIST(
-        split="test", transform=path_raw_transform, download=True
-    )
-    path_mean, path_std = compute_mean_std(path_raw)
-
+    # Cross-dataset OOD: PathMNIST (convert RGB to grayscale, normalize with ID stats)
     ood_transform = transforms.Compose(
         [
             transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
-            transforms.Normalize(mean=path_mean, std=path_std),
+            transforms.Normalize(mean=mean, std=std),
         ]
     )
     test_dataset_ood_cross = medmnist.PathMNIST(

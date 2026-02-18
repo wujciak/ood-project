@@ -48,16 +48,11 @@ def main():
         )
 
         if os.path.exists(model_path):
-            # Load previously trained model
             model.load_state_dict(torch.load(model_path, map_location=CONFIG["device"]))
             print(f"Loaded saved model {i+1} from {model_path}")
         else:
-            # Train model if not saved
             print(f"Training Model {i+1}/{CONFIG['n_ensemble']}")
-            for epoch in range(CONFIG["epochs"]):
-                print(f"  Epoch {epoch+1}/{CONFIG['epochs']}")
-                loss = train_model(model, train_loader, CONFIG["device"])
-                print(f"    Loss: {loss:.4f}")
+            train_model(model, train_loader, CONFIG["device"])
             torch.save(model.state_dict(), model_path)
             print(f"  Saved model to {model_path}")
 
