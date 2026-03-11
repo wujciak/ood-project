@@ -35,7 +35,7 @@ def main():
 
     print(f"Device: {CONFIG['device']}")
 
-    train_loader, test_id, test_ood_cross, test_ood_synth, n_channels, n_classes = (
+    train_loader, test_id, test_ood_far, test_ood_near, n_channels, n_classes = (
         get_dataloaders()
     )
 
@@ -61,7 +61,7 @@ def main():
     single_model = ensemble_models[0]
 
     print("\n--- Computing Uncertainty Scores ---")
-    datasets = {"ID": test_id, "OOD_Cross": test_ood_cross, "OOD_Synth": test_ood_synth}
+    datasets = {"ID": test_id, "OOD_Far": test_ood_far, "OOD_Near": test_ood_near}
     results = {}
 
     for name, loader in datasets.items():
@@ -73,10 +73,6 @@ def main():
         )
         res["entropy"] = np.array(det_scores["entropy"])
         res["energy"] = np.array(det_scores["energy"])
-        res["hybrid"] = (
-            CONFIG["hybrid_weights"]["entropy"] * res["entropy"]
-            + CONFIG["hybrid_weights"]["energy"] * res["energy"]
-        )
         res["mc_dropout"] = get_uncertainty_mc_dropout(
             single_model, loader, CONFIG["device"]
         )
@@ -86,13 +82,28 @@ def main():
 
         results[name] = res
 
+    # Compute hybrid score with global min-max normalization across all datasets,
+    # so that ID and OOD scores share the same scale before combining (as per paper).
+    all_entropy = np.concatenate([results[n]["entropy"] for n in datasets])
+    all_energy = np.concatenate([results[n]["energy"] for n in datasets])
+    ent_min, ent_max = all_entropy.min(), all_entropy.max()
+    eng_min, eng_max = all_energy.min(), all_energy.max()
+
+    for name in datasets:
+        norm_ent = (results[name]["entropy"] - ent_min) / (ent_max - ent_min + 1e-10)
+        norm_eng = (results[name]["energy"] - eng_min) / (eng_max - eng_min + 1e-10)
+        results[name]["hybrid"] = (
+            CONFIG["hybrid_weights"]["entropy"] * norm_ent
+            + CONFIG["hybrid_weights"]["energy"] * norm_eng
+        )
+
     # Save results CSVs
     save_scores_to_csv(results, output_dir=csv_dir)
 
     # Save mean/std summary
     summary = []
     for method in ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]:
-        for dataset in ["ID", "OOD_Cross", "OOD_Synth"]:
+        for dataset in ["ID", "OOD_Far", "OOD_Near"]:
             scores = results[dataset][method]
             summary.append(
                 {
@@ -111,8 +122,8 @@ def main():
     for method in ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]:
         id_scores = results["ID"][method]
         for dataset_name, ood_scores in [
-            ("OOD_Cross", results["OOD_Cross"][method]),
-            ("OOD_Synth", results["OOD_Synth"][method]),
+            ("OOD_Far", results["OOD_Far"][method]),
+            ("OOD_Near", results["OOD_Near"][method]),
         ]:
             y_true = np.concatenate(
                 [np.zeros(len(id_scores)), np.ones(len(ood_scores))]

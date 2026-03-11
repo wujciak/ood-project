@@ -1,6 +1,5 @@
 import torch
-import numpy as np
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 
 import medmnist
@@ -9,58 +8,38 @@ from medmnist import INFO
 from config.config import CONFIG
 
 
-class SyntheticOODDataset(Dataset):
-    def __init__(self, base_dataset):
-        self.base = base_dataset
-        self.blur = transforms.GaussianBlur(kernel_size=5)
-        self.rotate = transforms.RandomRotation(degrees=30)
-
-    def __len__(self):
-        return len(self.base)
-
-    def __getitem__(self, idx):
-        img, target = self.base[idx]
-
-        # Randomly choose perturbation
-        r = np.random.rand()
-        if r < 0.33:
-            noise = torch.randn_like(img) * 0.5
-            img = torch.clamp(img + noise, -2, 2)
-        elif r < 0.66:
-            img = self.rotate(img)
-        else:
-            img = self.blur(img)
-
-        return img, target
-
-
 def compute_mean_std(dataset):
     loader = DataLoader(dataset, batch_size=256, shuffle=False)
-    mean = 0.0
-    std = 0.0
     n_samples = 0
+    mean = 0.0
+    M2 = 0.0  # sum of squared deviations (for Welford-style variance)
 
+    # First pass: compute global mean
     for images, _ in loader:
-        images = images.view(images.size(0), images.size(1), -1)
+        images = images.view(images.size(0), images.size(1), -1)  # (B, C, H*W)
         mean += images.mean(2).sum(0)
-        std += images.std(2).sum(0)
         n_samples += images.size(0)
-
     mean /= n_samples
-    std /= n_samples
+
+    # Second pass: compute global variance
+    for images, _ in loader:
+        images = images.view(images.size(0), images.size(1), -1)  # (B, C, H*W)
+        M2 += ((images - mean.unsqueeze(0).unsqueeze(2)) ** 2).mean(2).sum(0)
+    std = (M2 / n_samples).sqrt()
+
     return mean.tolist(), std.tolist()
 
 
 def get_dataloaders():
-    # Load raw dataset to compute normalization
-    base_transform = transforms.ToTensor()
-    train_dataset_raw = medmnist.ChestMNIST(
-        split="train", transform=base_transform, download=True
+    info_chest = INFO["chestmnist"]
+
+    # Compute normalization stats from training set (ToTensor only, no augmentation)
+    mean, std = compute_mean_std(
+        medmnist.ChestMNIST(
+            split="train", transform=transforms.ToTensor(), download=True
+        )
     )
 
-    mean, std = compute_mean_std(train_dataset_raw)
-
-    # Training transform with augmentation
     train_transform = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -69,14 +48,13 @@ def get_dataloaders():
             transforms.Normalize(mean=mean, std=std),
         ]
     )
-
-    # Test transform without augmentation
     data_transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)]
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
+        ]
     )
 
-    # In-distribution: ChestMNIST
-    info_chest = INFO["chestmnist"]
     train_dataset = medmnist.ChestMNIST(
         split="train", transform=train_transform, download=True
     )
@@ -84,20 +62,23 @@ def get_dataloaders():
         split="test", transform=data_transform, download=True
     )
 
-    # Cross-dataset OOD: PathMNIST (convert RGB to grayscale, normalize with ID stats)
-    ood_transform = transforms.Compose(
+    # Far-OOD: PathMNIST (histology, RGB → grayscale, normalized with ID stats)
+    far_ood_transform = transforms.Compose(
         [
             transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
             transforms.Normalize(mean=mean, std=std),
         ]
     )
-    test_dataset_ood_cross = medmnist.PathMNIST(
-        split="test", transform=ood_transform, download=True
+    test_dataset_ood_far = medmnist.PathMNIST(
+        split="test", transform=far_ood_transform, download=True
     )
 
-    # Synthetic OOD
-    test_dataset_ood_synth = SyntheticOODDataset(test_dataset_id)
+    # Near-OOD: PneumoniaMNIST (chest X-rays, different source hospital)
+    # Already grayscale (1-channel), normalized with ChestMNIST stats
+    test_dataset_ood_near = medmnist.PneumoniaMNIST(
+        split="test", transform=data_transform, download=True
+    )
 
     train_loader = DataLoader(
         train_dataset, batch_size=CONFIG["batch_size"], shuffle=True
@@ -105,18 +86,18 @@ def get_dataloaders():
     test_loader_id = DataLoader(
         test_dataset_id, batch_size=CONFIG["batch_size"], shuffle=False
     )
-    test_loader_ood_cross = DataLoader(
-        test_dataset_ood_cross, batch_size=CONFIG["batch_size"], shuffle=False
+    test_loader_ood_far = DataLoader(
+        test_dataset_ood_far, batch_size=CONFIG["batch_size"], shuffle=False
     )
-    test_loader_ood_synth = DataLoader(
-        test_dataset_ood_synth, batch_size=CONFIG["batch_size"], shuffle=False
+    test_loader_ood_near = DataLoader(
+        test_dataset_ood_near, batch_size=CONFIG["batch_size"], shuffle=False
     )
 
     return (
         train_loader,
         test_loader_id,
-        test_loader_ood_cross,
-        test_loader_ood_synth,
+        test_loader_ood_far,
+        test_loader_ood_near,
         info_chest["n_channels"],
         len(info_chest["label"]),
     )

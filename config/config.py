@@ -3,7 +3,7 @@ import torch
 CONFIG = {
     "batch_size": 64,
     "lr": 0.0001,
-    "epochs": 50,
+    "epochs": 20,
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "n_ensemble": 5,
     "mc_samples": 30,

@@ -53,3 +53,4 @@ saved_models/*.ckpt
 
 # OS
 .DS_Store
+latex/*
