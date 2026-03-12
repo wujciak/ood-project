@@ -18,6 +18,8 @@ from utils.save_results import (
     save_scores_to_csv,
     plot_score_histograms,
     plot_roc_curves,
+    plot_pr_curves,
+    plot_auroc_bar,
 )
 
 # Ensure results folders exist
@@ -144,12 +146,16 @@ def main():
                 }
             )
 
-    pd.DataFrame(auroc_summary).to_csv(f"{csv_dir}/auroc.csv", index=False)
-    pd.DataFrame(aupr_summary).to_csv(f"{csv_dir}/aupr.csv", index=False)
+    auroc_df = pd.DataFrame(auroc_summary)
+    aupr_df = pd.DataFrame(aupr_summary)
+    auroc_df.to_csv(f"{csv_dir}/auroc.csv", index=False)
+    aupr_df.to_csv(f"{csv_dir}/aupr.csv", index=False)
 
-    # Plot histograms and ROC curves
+    # Plot histograms, ROC curves, PR curves and bar chart
     plot_score_histograms(results, output_dir=plots_dir)
     plot_roc_curves(results, output_dir=plots_dir)
+    plot_pr_curves(results, output_dir=plots_dir)
+    plot_auroc_bar(auroc_df, aupr_df, output_dir=plots_dir)
 
     print("\n--- All results saved ---")
     print("Models: results/models/")

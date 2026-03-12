@@ -33,7 +33,10 @@ def get_uncertainty_mc_dropout(model, loader, device, k=CONFIG["mc_samples"]):
     """Monte Carlo Dropout — returns mutual information (BALD) scores.
     MI captures model disagreement across stochastic forward passes.
     """
-    model.train()  # Keep dropout active
+    model.eval()
+    for m in model.modules():  # Enable only dropout, not BatchNorm train mode
+        if isinstance(m, torch.nn.Dropout):
+            m.train()
     uncertainties = []
 
     with torch.no_grad():
