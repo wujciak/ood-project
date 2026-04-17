@@ -1,5 +1,12 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
+
+
+def build_labels_scores(id_arr, ood_arr):
+    y_true = np.concatenate([np.zeros(len(id_arr)), np.ones(len(ood_arr))])
+    y_scores = np.concatenate([id_arr, ood_arr])
+    return y_true, y_scores
 
 
 def compute_predictive_entropy(probs):

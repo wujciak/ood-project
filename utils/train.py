@@ -10,6 +10,7 @@ def train_model(model, loader, device):
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=CONFIG["lr"])
 
+    avg_loss = 0.0
     model.train()
     for epoch in range(CONFIG["epochs"]):
         total_loss = 0.0

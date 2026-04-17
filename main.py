@@ -14,6 +14,7 @@ from utils import (
     get_uncertainty_mc_dropout,
     get_uncertainty_ensemble,
 )
+from utils.metrics import build_labels_scores
 from utils.save_results import (
     save_scores_to_csv,
     plot_score_histograms,
@@ -22,13 +23,13 @@ from utils.save_results import (
     plot_auroc_bar,
 )
 
-# Ensure results folders exist
-os.makedirs("results/models", exist_ok=True)
-os.makedirs("results/plots", exist_ok=True)
-os.makedirs("results/csv", exist_ok=True)
+METHODS = ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]
 
 
 def main():
+    os.makedirs("results/models", exist_ok=True)
+    os.makedirs("results/plots", exist_ok=True)
+    os.makedirs("results/csv", exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_dir = f"results/csv/{timestamp}"
     plots_dir = f"results/plots/{timestamp}"
@@ -50,7 +51,9 @@ def main():
         )
 
         if os.path.exists(model_path):
-            model.load_state_dict(torch.load(model_path, map_location=CONFIG["device"]))
+            model.load_state_dict(
+                torch.load(model_path, map_location=CONFIG["device"], weights_only=True)
+            )
             print(f"Loaded saved model {i+1} from {model_path}")
         else:
             print(f"Training Model {i+1}/{CONFIG['n_ensemble']}")
@@ -104,7 +107,7 @@ def main():
 
     # Save mean/std summary
     summary = []
-    for method in ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]:
+    for method in METHODS:
         for dataset in ["ID", "OOD_Far", "OOD_Near"]:
             scores = results[dataset][method]
             summary.append(
@@ -118,19 +121,15 @@ def main():
     pd.DataFrame(summary).to_csv(f"{csv_dir}/score_statistics.csv", index=False)
 
     # Compute and save AUROC & AUPR
-    # All uncertainty scores are designed so that: higher value = more uncertain = more OOD-like
-    # This matches AUROC expectation: label 0 (ID) gets low scores, label 1 (OOD) gets high scores
+    # All scores: higher = more uncertain = more OOD-like (label 1), ID = label 0
     auroc_summary, aupr_summary = [], []
-    for method in ["entropy", "energy", "hybrid", "mc_dropout", "ensemble"]:
+    for method in METHODS:
         id_scores = results["ID"][method]
         for dataset_name, ood_scores in [
             ("OOD_Far", results["OOD_Far"][method]),
             ("OOD_Near", results["OOD_Near"][method]),
         ]:
-            y_true = np.concatenate(
-                [np.zeros(len(id_scores)), np.ones(len(ood_scores))]
-            )
-            y_scores = np.concatenate([id_scores, ood_scores])
+            y_true, y_scores = build_labels_scores(id_scores, ood_scores)
             auroc_summary.append(
                 {
                     "method": method,
